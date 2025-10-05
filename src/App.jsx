@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Save, Trash2, Upload, AlertTriangle, CheckCircle, Info, Settings, X, Menu, Grid3x3 } from 'lucide-react';
 
-// Definición de componentes del hábitat con sus propiedades
+// Definition of habitat components with their properties
 const HABITAT_COMPONENTS = {
   privateQuarters: {
     id: 'privateQuarters',
     name: 'Cuartos Privados',
+    labelKey: 'comp_privateQuarters',
     type: 'clean',
     volume: 8.5,
     width: 120,
@@ -16,6 +17,7 @@ const HABITAT_COMPONENTS = {
   galley: {
     id: 'galley',
     name: 'Galley/Comedor',
+    labelKey: 'comp_galley',
     type: 'clean',
     volume: 12,
     width: 140,
@@ -26,6 +28,7 @@ const HABITAT_COMPONENTS = {
   hygiene: {
     id: 'hygiene',
     name: 'Higiene',
+    labelKey: 'comp_hygiene',
     type: 'dirty',
     volume: 6,
     width: 100,
@@ -36,6 +39,7 @@ const HABITAT_COMPONENTS = {
   wcs: {
     id: 'wcs',
     name: 'WCS',
+    labelKey: 'comp_wcs',
     type: 'dirty',
     volume: 4,
     width: 80,
@@ -46,6 +50,7 @@ const HABITAT_COMPONENTS = {
   exercise: {
     id: 'exercise',
     name: 'Ejercicio',
+    labelKey: 'comp_exercise',
     type: 'dirty',
     volume: 10,
     width: 120,
@@ -56,6 +61,7 @@ const HABITAT_COMPONENTS = {
   workstation: {
     id: 'workstation',
     name: 'Estación de Trabajo',
+    labelKey: 'comp_workstation',
     type: 'clean',
     volume: 7,
     width: 110,
@@ -66,6 +72,7 @@ const HABITAT_COMPONENTS = {
   lifeSupport: {
     id: 'lifeSupport',
     name: 'Soporte Vital',
+    labelKey: 'comp_lifeSupport',
     type: 'systems',
     volume: 15,
     width: 130,
@@ -76,6 +83,7 @@ const HABITAT_COMPONENTS = {
   commandControl: {
     id: 'commandControl',
     name: 'Comando y Control',
+    labelKey: 'comp_commandControl',
     type: 'clean',
     volume: 10,
     width: 140,
@@ -86,6 +94,7 @@ const HABITAT_COMPONENTS = {
   storage: {
     id: 'storage',
     name: 'Almacenamiento',
+    labelKey: 'comp_storage',
     type: 'neutral',
     volume: 8,
     width: 110,
@@ -96,6 +105,7 @@ const HABITAT_COMPONENTS = {
   maintenance: {
     id: 'maintenance',
     name: 'Mantenimiento',
+    labelKey: 'comp_maintenance',
     type: 'dirty',
     volume: 9,
     width: 120,
@@ -106,6 +116,7 @@ const HABITAT_COMPONENTS = {
   airlock: {
     id: 'airlock',
     name: 'Esclusa/Acceso',
+    labelKey: 'comp_airlock',
     type: 'dirty',
     volume: 5,
     width: 90,
@@ -116,6 +127,7 @@ const HABITAT_COMPONENTS = {
   radiationShelter: {
     id: 'radiationShelter',
     name: 'Refugio Radiación',
+    labelKey: 'comp_radiationShelter',
     type: 'clean',
     volume: 12,
     width: 130,
@@ -126,6 +138,7 @@ const HABITAT_COMPONENTS = {
   medical: {
     id: 'medical',
     name: 'Operaciones Médicas',
+    labelKey: 'comp_medical',
     type: 'clean',
     volume: 11,
     width: 130,
@@ -135,7 +148,7 @@ const HABITAT_COMPONENTS = {
   }
 };
 
-// Distancia de snap (alineación magnética)
+// Snap distance (magnetic alignment)
 const SNAP_DISTANCE = 25;
 
 function App() {
@@ -145,6 +158,155 @@ function App() {
     crewSize: 4,
     geometry: 'cilindrica'
   });
+
+  // Language (es/en) and strings
+  const [lang, setLang] = useState('en');
+  const STRINGS = {
+    es: {
+      title: '🚀 HABiT',
+      subtitle: 'Habitat Interactive Tool',
+      clear: 'Limpiar',
+      save: 'Guardar',
+      components: 'Componentes',
+      dragHint: 'Arrastra al canvas para agregar →',
+      noDesigns: 'No hay diseños guardados',
+      saveDialogTitle: 'Guardar Diseño',
+      designNamePlaceholder: 'Nombre del diseño',
+      cancel: 'Cancelar',
+      missionParams: 'Parámetros de Misión',
+      toggleGrid: 'Alternar cuadrícula',
+      settings: 'Configuración',
+      habitability: 'Habitabilidad',
+      savedDesignsTitle: 'Diseños Guardados',
+      startDesignTitle: '🚀 Comienza tu diseño',
+      startDesignHint: 'Arrastra componentes desde el panel izquierdo',
+      startDesignSub: 'Los módulos se alinearán automáticamente',
+      type_clean: 'Limpio',
+      type_dirty: 'Sucio',
+      type_systems: 'Sistemas',
+      type_neutral: 'Neutral',
+      metrics_volume: 'Volumen (NHV)',
+      metrics_privacy: 'Privacidad',
+      metrics_contamination: 'Contaminación',
+      metrics_components: 'Componentes',
+      metrics_lifeSupport: '🌬️ Soporte Vital',
+      metrics_airlock: '🚪 Esclusa',
+      status_comply: 'Cumple',
+      status_low: 'Bajo',
+      status_ok: 'OK',
+      status_alerts: 'Alertas',
+      status_installed: 'Instalado',
+      status_missing: 'Faltante',
+      label_destination: 'Destino',
+      label_duration: 'Duración',
+      label_crew: 'Tripulación',
+      label_geometry: 'Geometría',
+      option_moon: '🌙 Luna (Superficie)',
+      option_mars: '🔴 Marte (Superficie)',
+      option_transit: '🚀 Tránsito (Cislunar/Marte)',
+  option_geometry_cyl: 'Cilíndrica',
+  option_geometry_hybrid: 'Híbrida (Metálica + Inflable)',
+      option_short: 'Corta (≤30 días)',
+      option_moderate: 'Moderada (60 días)',
+      option_long: 'Larga (180+ días)',
+      confirm_delete_design: '¿Estás seguro de eliminar este diseño?',
+      confirm_clear_canvas: '¿Limpiar todo el canvas?',
+      alert_enter_name: 'Por favor ingresa un nombre para el diseño',
+      settings_title: 'Parámetros de Misión'
+  ,
+  comp_privateQuarters: 'Cuartos Privados',
+  comp_galley: 'Galley/Comedor',
+  comp_hygiene: 'Higiene',
+  comp_wcs: 'WCS',
+  comp_exercise: 'Ejercicio',
+  comp_workstation: 'Estación de Trabajo',
+  comp_lifeSupport: 'Soporte Vital',
+  comp_commandControl: 'Comando y Control',
+  comp_storage: 'Almacenamiento',
+  comp_maintenance: 'Mantenimiento',
+  comp_airlock: 'Esclusa/Acceso',
+  comp_radiationShelter: 'Refugio Radiación',
+  comp_medical: 'Operaciones Médicas',
+  of_100: 'de 100'
+      ,
+      principle_title: 'Principio',
+      principle_text: 'La disposición puede ser más importante que el volumen.'
+    },
+    en: {
+      title: '🚀 HABiT',
+      subtitle: 'Habitat Interactive Tool',
+      clear: 'Clear',
+      save: 'Save',
+      components: 'Components',
+      dragHint: 'Drag to the canvas to add →',
+      noDesigns: 'No saved designs',
+      saveDialogTitle: 'Save Design',
+      designNamePlaceholder: 'Design name',
+      cancel: 'Cancel',
+      missionParams: 'Mission Parameters',
+      toggleGrid: 'Toggle grid',
+      settings: 'Settings',
+      habitability: 'Habitability',
+      savedDesignsTitle: 'Saved Designs',
+      startDesignTitle: '🚀 Start your design',
+      startDesignHint: 'Drag components from the left panel',
+      startDesignSub: 'Modules will snap automatically',
+      type_clean: 'Clean',
+      type_dirty: 'Dirty',
+      type_systems: 'Systems',
+      type_neutral: 'Neutral',
+      metrics_volume: 'Volume (NHV)',
+      metrics_privacy: 'Privacy',
+      metrics_contamination: 'Contamination',
+      metrics_components: 'Components',
+      metrics_lifeSupport: 'Life Support',
+      metrics_airlock: 'Airlock',
+      status_comply: 'Compliant',
+      status_low: 'Low',
+      status_ok: 'OK',
+      status_alerts: 'Alerts',
+      status_installed: 'Installed',
+      status_missing: 'Missing',
+      label_destination: 'Destination',
+      label_duration: 'Duration',
+      label_crew: 'Crew',
+      label_geometry: 'Geometry',
+      option_moon: '🌙 Moon (Surface)',
+      option_mars: '🔴 Mars (Surface)',
+      option_transit: '🚀 Transit (Cislunar/Mars)',
+  option_geometry_cyl: 'Cylindrical',
+  option_geometry_hybrid: 'Hybrid (Metallic + Inflatable)',
+  load: 'Load',
+  delete: 'Delete',
+  toggleLanguage: 'Translate',
+      option_short: 'Short (≤30 days)',
+      option_moderate: 'Moderate (60 days)',
+      option_long: 'Long (180+ days)',
+      confirm_delete_design: 'Are you sure you want to delete this design?',
+      confirm_clear_canvas: 'Clear the entire canvas?',
+      alert_enter_name: 'Please enter a name for the design',
+      settings_title: 'Mission Parameters'
+  ,
+  comp_privateQuarters: 'Private Quarters',
+  comp_galley: 'Galley / Wardroom',
+  comp_hygiene: 'Hygiene',
+  comp_wcs: 'WCS',
+  comp_exercise: 'Exercise',
+  comp_workstation: 'Workstation',
+  comp_lifeSupport: 'Life Support',
+  comp_commandControl: 'Command & Control',
+  comp_storage: 'Storage',
+  comp_maintenance: 'Maintenance',
+  comp_airlock: 'Airlock',
+  comp_radiationShelter: 'Radiation Shelter',
+  comp_medical: 'Medical Operations',
+  of_100: 'of 100'
+      ,
+      principle_title: 'Principle',
+      principle_text: 'Layout can be more important than volume.'
+    }
+  };
+  const t = (key) => (STRINGS[lang] && STRINGS[lang][key]) || key;
 
   const [placedComponents, setPlacedComponents] = useState([]);
   const [draggedComponent, setDraggedComponent] = useState(null);
@@ -156,7 +318,7 @@ function App() {
   const [designName, setDesignName] = useState('');
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   
-  // Estados para UI mejorada
+  // UI state flags
   const [showSettings, setShowSettings] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
@@ -241,7 +403,7 @@ function App() {
             Math.pow(comp.x - other.x, 2) + Math.pow(comp.y - other.y, 2)
           );
           
-          // Si están muy cerca y son de tipos incompatibles
+          // If they are too close and types are incompatible
           if (distance < 150) {
             if ((compData.type === 'clean' && otherData.type === 'dirty') ||
                 (compData.type === 'dirty' && otherData.type === 'clean')) {
@@ -266,7 +428,7 @@ function App() {
       });
     });
 
-    // Verificar componentes críticos
+  // Check critical components
     const hasLifeSupport = placedComponents.some(c => c.type === 'lifeSupport');
     const hasAirlock = placedComponents.some(c => c.type === 'airlock');
     const hasMedical = placedComponents.some(c => c.type === 'medical');
@@ -274,34 +436,34 @@ function App() {
     const hasStorage = placedComponents.some(c => c.type === 'storage');
     const hasCommandControl = placedComponents.some(c => c.type === 'commandControl');
     
-    // CÁLCULO DE PUNTUACIÓN DE HABITABILIDAD (0-100)
+  // HABITABILITY SCORE CALCULATION (0-100)
     let habitabilityScore = 0;
     
-    // 1. Volumen adecuado (20 puntos)
+  // 1. Adequate volume (20 points)
     if (currentNHV >= minNHV) {
       habitabilityScore += 20;
     } else {
       habitabilityScore += Math.min(20, (currentNHV / minNHV) * 20);
     }
     
-    // 2. Privacidad (15 puntos)
+  // 2. Privacy (15 points)
     habitabilityScore += (privacyScore / 100) * 15;
     
-    // 3. Sin contaminación cruzada (20 puntos)
+  // 3. No cross-contamination (20 points)
     const contaminationPenalty = Math.min(20, contaminations.length * 5);
     habitabilityScore += (20 - contaminationPenalty);
     
-    // 4. Componentes críticos (30 puntos total)
+  // 4. Critical components (30 points total)
     if (hasLifeSupport) habitabilityScore += 10;
     if (hasAirlock) habitabilityScore += 8;
     if (hasMedical) habitabilityScore += 6;
     if (hasSPECapability) habitabilityScore += 6;
     
-    // 5. Componentes complementarios (10 puntos)
+  // 5. Complementary components (10 points)
     if (hasStorage) habitabilityScore += 5;
     if (hasCommandControl) habitabilityScore += 5;
     
-    // 6. Balance de componentes (5 puntos)
+  // 6. Component balance (5 points)
     const hasBasicNeeds = placedComponents.some(c => c.type === 'galley') &&
                           placedComponents.some(c => c.type === 'hygiene') &&
                           placedComponents.some(c => c.type === 'privateQuarters');
@@ -422,7 +584,7 @@ function App() {
 
   const saveDesign = () => {
     if (!designName.trim()) {
-      alert('Por favor ingresa un nombre para el diseño');
+      alert(t('alert_enter_name'));
       return;
     }
 
@@ -450,7 +612,7 @@ function App() {
   };
 
   const deleteDesign = (designId) => {
-    if (!confirm('¿Estás seguro de eliminar este diseño?')) return;
+    if (!confirm(t('confirm_delete_design'))) return;
     
     const updated = savedDesigns.filter(d => d.id !== designId);
     setSavedDesigns(updated);
@@ -458,7 +620,7 @@ function App() {
   };
 
   const clearCanvas = () => {
-    if (confirm('¿Limpiar todo el canvas?')) {
+    if (confirm(t('confirm_clear_canvas'))) {
       setPlacedComponents([]);
       setSelectedComponent(null);
     }
@@ -510,9 +672,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white">
-      {/* Header compacto y responsive */}
+  {/* Compact, responsive header */}
       <header className="bg-gray-900 bg-opacity-90 backdrop-blur-sm border-b border-gray-700 px-3 sm:px-6 py-3 sm:py-4 sticky top-0 z-50">
-        <div className="max-w-full mx-auto flex items-center justify-between gap-2">
+            <div className="max-w-full mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-4">
             <button
               onClick={() => setShowSidebar(!showSidebar)}
@@ -522,16 +684,16 @@ function App() {
             </button>
             <div>
               <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                🚀 HABiT
+                {t('title')}
               </h1>
-              <p className="text-xs text-gray-400 hidden sm:block">Habitat Interactive Tool</p>
+              <p className="text-xs text-gray-400 hidden sm:block">{t('subtitle')}</p>
             </div>
           </div>
           
           {/* Puntuación de Habitabilidad - Responsive */}
           <div className="flex items-center gap-2 sm:gap-4">
             <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg px-3 sm:px-6 py-1.5 sm:py-2 border-2 border-blue-500 shadow-lg">
-              <div className="text-xs text-gray-300 mb-0.5 sm:mb-1 text-center hidden sm:block">Habitabilidad</div>
+            <div className="text-xs text-gray-300 mb-0.5 sm:mb-1 text-center hidden sm:block">{t('habitability')}</div>
               <div className="flex items-center gap-2 sm:gap-3">
                 <div className="text-xl sm:text-3xl font-bold" style={{
                   color: metrics.habitabilityScore >= 80 ? '#4CAF50' :
@@ -542,6 +704,7 @@ function App() {
                 </div>
                 <div>
                   <div className="text-xs text-gray-400">de 100</div>
+                  
                   <div className="w-12 sm:w-20 bg-gray-700 rounded-full h-1.5 sm:h-2 mt-0.5 sm:mt-1">
                     <div 
                       className="h-1.5 sm:h-2 rounded-full transition-all duration-500"
@@ -562,41 +725,49 @@ function App() {
             <button
               onClick={() => setShowGrid(!showGrid)}
               className={`p-1.5 sm:p-2 rounded transition ${showGrid ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
-              title="Toggle Grid"
+              title={t('toggleGrid')}
             >
               <Grid3x3 size={16} className="sm:w-5 sm:h-5" />
             </button>
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="p-1.5 sm:p-2 bg-gray-700 hover:bg-gray-600 rounded transition"
-              title="Configuración"
+              className="p-1.5 sm:p-2 bg-gray-700 hover:bg-gray-600 rounded transition flex items-center gap-2"
+              title={t('settings')}
             >
               <Settings size={16} className="sm:w-5 sm:h-5" />
+              {/* Language toggle moved next to settings */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setLang(lang === 'es' ? 'en' : 'es'); }}
+                className="ml-2 bg-white bg-opacity-10 text-white px-2 py-1 rounded-md hover:bg-opacity-20 text-xs"
+                title={t('toggleLanguage')}
+              >
+                {lang === 'es' ? 'ES' : 'EN'}
+              </button>
             </button>
             <button
               onClick={clearCanvas}
               className="px-2 sm:px-4 py-1.5 sm:py-2 bg-red-600 hover:bg-red-700 rounded transition flex items-center gap-1 sm:gap-2"
             >
               <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
-              <span className="hidden md:inline text-sm">Limpiar</span>
+              <span className="hidden md:inline text-sm">{t('clear')}</span>
             </button>
             <button
               onClick={() => setShowSaveDialog(true)}
               className="px-2 sm:px-4 py-1.5 sm:py-2 bg-green-600 hover:bg-green-700 rounded transition flex items-center gap-1 sm:gap-2"
             >
               <Save size={16} className="sm:w-[18px] sm:h-[18px]" />
-              <span className="hidden md:inline text-sm">Guardar</span>
+              <span className="hidden md:inline text-sm">{t('save')}</span>
             </button>
           </div>
         </div>
       </header>
 
       <div className="flex h-[calc(100vh-80px)]">
-        {/* Sidebar izquierdo - Componentes */}
-        <div className={`${showSidebar ? 'w-80' : 'w-0'} transition-all duration-300 bg-gray-800 border-r border-gray-700 overflow-hidden flex-shrink-0`}>
+  {/* Left sidebar - Components */}
+          <div className={`${showSidebar ? 'w-80' : 'w-0'} transition-all duration-300 bg-gray-800 border-r border-gray-700 overflow-hidden flex-shrink-0`}>
           <div className="p-4 h-full overflow-y-auto">
             <h2 className="text-lg font-semibold mb-3 flex items-center justify-between">
-              Componentes
+              {t('components')}
               <button
                 onClick={() => setShowSidebar(false)}
                 className="lg:hidden p-1 hover:bg-gray-700 rounded"
@@ -604,7 +775,7 @@ function App() {
                 <X size={18} />
               </button>
             </h2>
-            <p className="text-xs text-gray-400 mb-4">Arrastra al canvas para agregar →</p>
+            <p className="text-xs text-gray-400 mb-4">{t('dragHint')}</p>
             
             <div className="space-y-2">
               {Object.values(HABITAT_COMPONENTS).map((comp) => (
@@ -618,7 +789,7 @@ function App() {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xl">{comp.icon}</span>
                     <div className="flex-1">
-                      <div className="font-medium text-sm">{comp.name}</div>
+                      <div className="font-medium text-sm">{t(comp.labelKey)}</div>
                       <span className="text-xs text-gray-400">{comp.volume}m³</span>
                     </div>
                   </div>
@@ -629,23 +800,23 @@ function App() {
                       comp.type === 'systems' ? 'bg-purple-600' : 
                       'bg-gray-600'
                     }`}>
-                      {comp.type === 'clean' ? 'Limpio' : 
-                       comp.type === 'dirty' ? 'Sucio' : 
-                       comp.type === 'systems' ? 'Sistemas' : 
-                       'Neutral'}
+                      {comp.type === 'clean' ? t('type_clean') : 
+                       comp.type === 'dirty' ? t('type_dirty') : 
+                       comp.type === 'systems' ? t('type_systems') : 
+                       t('type_neutral')}
                     </span>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Diseños guardados en sidebar */}
+            {/* Saved designs in sidebar */}
             <div className="mt-6">
-              <h3 className="text-sm font-semibold mb-2 text-gray-300">Diseños Guardados</h3>
+              <h3 className="text-sm font-semibold mb-2 text-gray-300">{t('savedDesignsTitle')}</h3>
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {savedDesigns.length === 0 ? (
                   <p className="text-xs text-gray-500 text-center py-4">
-                    No hay diseños guardados
+                    {t('noDesigns')}
                   </p>
                 ) : (
                   savedDesigns.map((design) => (
@@ -661,14 +832,14 @@ function App() {
                           <button
                             onClick={() => loadDesign(design)}
                             className="p-1 bg-blue-600 hover:bg-blue-700 rounded"
-                            title="Cargar"
+                            title={t('load')}
                           >
                             <Upload size={12} />
                           </button>
                           <button
                             onClick={() => deleteDesign(design.id)}
                             className="p-1 bg-red-600 hover:bg-red-700 rounded"
-                            title="Eliminar"
+                            title={t('delete')}
                           >
                             <Trash2 size={12} />
                           </button>
@@ -682,7 +853,7 @@ function App() {
           </div>
         </div>
 
-        {/* Canvas principal */}
+  {/* Main canvas */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 p-6 overflow-auto">
             <div className="max-w-7xl mx-auto h-full">
@@ -707,9 +878,9 @@ function App() {
                 {placedComponents.length === 0 && (
                   <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-center px-4 pointer-events-none">
                     <div>
-                      <div className="text-2xl mb-3">🚀 Comienza tu diseño</div>
-                      <div className="text-sm">Arrastra componentes desde el panel izquierdo</div>
-                      <div className="text-xs text-gray-500 mt-2">Los módulos se alinearán automáticamente</div>
+                      <div className="text-2xl mb-3">{t('startDesignTitle')}</div>
+                      <div className="text-sm">{t('startDesignHint')}</div>
+                      <div className="text-xs text-gray-500 mt-2">{t('startDesignSub')}</div>
                     </div>
                   </div>
                 )}
@@ -742,7 +913,7 @@ function App() {
                     >
                       <div className="text-xl mb-1">{compData.icon}</div>
                       <div className="text-xs font-bold text-white drop-shadow-lg text-center leading-tight">
-                        {compData.name}
+                        {t(compData.labelKey)}
                       </div>
                       <div className="text-xs text-white opacity-80 mt-1">
                         {compData.volume}m³
@@ -765,24 +936,24 @@ function App() {
             </div>
           </div>
 
-          {/* Panel de métricas inferior */}
+          {/* Bottom metrics panel */}
           <div className="bg-gray-800 border-t border-gray-700 p-4">
             <div className="max-w-7xl mx-auto">
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 <div className="bg-gray-700 rounded p-3">
-                  <div className="text-xs text-gray-400 mb-1">Volumen (NHV)</div>
+              <div className="text-xs text-gray-400 mb-1">{t('metrics_volume')}</div>
                   <div className="text-lg font-bold">{metrics.currentNHV.toFixed(1)}m³</div>
                   <div className="flex items-center gap-1 text-xs mt-1">
                     {metrics.nhvCompliance ? (
-                      <><CheckCircle size={12} className="text-green-400" /> <span className="text-green-400">Cumple</span></>
+                      <><CheckCircle size={12} className="text-green-400" /> <span className="text-green-400">{t('status_comply')}</span></>
                     ) : (
-                      <><AlertTriangle size={12} className="text-red-400" /> <span className="text-red-400">Bajo</span></>
+                      <><AlertTriangle size={12} className="text-red-400" /> <span className="text-red-400">{t('status_low')}</span></>
                     )}
                   </div>
                 </div>
 
                 <div className="bg-gray-700 rounded p-3">
-                  <div className="text-xs text-gray-400 mb-1">Privacidad</div>
+                  <div className="text-xs text-gray-400 mb-1">{t('metrics_privacy')}</div>
                   <div className="text-lg font-bold">{metrics.privacyScore}%</div>
                   <div className="w-full bg-gray-600 rounded-full h-1.5 mt-2">
                     <div 
@@ -793,50 +964,50 @@ function App() {
                 </div>
 
                 <div className="bg-gray-700 rounded p-3">
-                  <div className="text-xs text-gray-400 mb-1">Contaminación</div>
+                  <div className="text-xs text-gray-400 mb-1">{t('metrics_contamination')}</div>
                   <div className="text-lg font-bold">{metrics.contaminations.length}</div>
                   <div className="flex items-center gap-1 text-xs mt-1">
                     {metrics.contaminations.length === 0 ? (
-                      <><CheckCircle size={12} className="text-green-400" /> <span className="text-green-400">OK</span></>
+                      <><CheckCircle size={12} className="text-green-400" /> <span className="text-green-400">{t('status_ok')}</span></>
                     ) : (
-                      <><AlertTriangle size={12} className="text-yellow-400" /> <span className="text-yellow-400">Alertas</span></>
+                      <><AlertTriangle size={12} className="text-yellow-400" /> <span className="text-yellow-400">{t('status_alerts')}</span></>
                     )}
                   </div>
                 </div>
 
                 <div className="bg-gray-700 rounded p-3">
-                  <div className="text-xs text-gray-400 mb-1">Componentes</div>
+                  <div className="text-xs text-gray-400 mb-1">{t('metrics_components')}</div>
                   <div className="text-lg font-bold">{placedComponents.length}</div>
                   <div className="text-xs text-gray-400 mt-1">
-                    Tripulación: {missionParams.crewSize}
+                    {t('label_crew')}: {missionParams.crewSize}
                   </div>
                 </div>
 
                 <div className="bg-gray-700 rounded p-3">
-                  <div className="text-xs text-gray-400 mb-1">🌬️ Soporte Vital</div>
+                  <div className="text-xs text-gray-400 mb-1">{t('metrics_lifeSupport')}</div>
                   <div className="text-sm font-bold mt-1">
                     {metrics.hasLifeSupport ? (
                       <span className="text-green-400 flex items-center gap-1">
-                        <CheckCircle size={14} /> Instalado
+                        <CheckCircle size={14} /> {t('status_installed')}
                       </span>
                     ) : (
                       <span className="text-red-400 flex items-center gap-1">
-                        <AlertTriangle size={14} /> Faltante
+                        <AlertTriangle size={14} /> {t('status_missing')}
                       </span>
                     )}
                   </div>
                 </div>
 
                 <div className="bg-gray-700 rounded p-3">
-                  <div className="text-xs text-gray-400 mb-1">🚪 Esclusa</div>
+                  <div className="text-xs text-gray-400 mb-1">{t('metrics_airlock')}</div>
                   <div className="text-sm font-bold mt-1">
                     {metrics.hasAirlock ? (
                       <span className="text-green-400 flex items-center gap-1">
-                        <CheckCircle size={14} /> OK
+                        <CheckCircle size={14} /> {t('status_ok')}
                       </span>
                     ) : (
                       <span className="text-yellow-400 flex items-center gap-1">
-                        <AlertTriangle size={14} /> Requerida
+                        <AlertTriangle size={14} /> {t('status_missing')}
                       </span>
                     )}
                   </div>
@@ -847,12 +1018,12 @@ function App() {
         </div>
       </div>
 
-      {/* Modal de configuración */}
+  {/* Settings modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-700">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Parámetros de Misión</h2>
+              <h2 className="text-xl font-semibold">{t('settings_title')}</h2>
               <button onClick={() => setShowSettings(false)} className="p-1 hover:bg-gray-700 rounded">
                 <X size={20} />
               </button>
@@ -860,33 +1031,33 @@ function App() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Destino</label>
+                <label className="block text-sm font-medium mb-2">{t('label_destination')}</label>
                 <select 
                   className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
                   value={missionParams.destination}
                   onChange={(e) => setMissionParams({...missionParams, destination: e.target.value})}
                 >
-                  <option value="luna">🌙 Luna (Superficie)</option>
-                  <option value="marte">🔴 Marte (Superficie)</option>
-                  <option value="transito">🚀 Tránsito (Cislunar/Marte)</option>
+                  <option value="luna">{t('option_moon')}</option>
+                  <option value="marte">{t('option_mars')}</option>
+                  <option value="transito">{t('option_transit')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Duración</label>
+                <label className="block text-sm font-medium mb-2">{t('label_duration')}</label>
                 <select 
                   className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
                   value={missionParams.duration}
                   onChange={(e) => setMissionParams({...missionParams, duration: e.target.value})}
                 >
-                  <option value="corta">Corta (≤30 días)</option>
-                  <option value="moderada">Moderada (60 días)</option>
-                  <option value="larga">Larga (180+ días)</option>
+                  <option value="corta">{t('option_short')}</option>
+                  <option value="moderada">{t('option_moderate')}</option>
+                  <option value="larga">{t('option_long')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Tripulación: {missionParams.crewSize}</label>
+                <label className="block text-sm font-medium mb-2">{t('label_crew')}: {missionParams.crewSize}</label>
                 <input 
                   type="range" 
                   min="2" 
@@ -902,22 +1073,22 @@ function App() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Geometría</label>
+                <label className="block text-sm font-medium mb-2">{t('label_geometry')}</label>
                 <select 
                   className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
                   value={missionParams.geometry}
                   onChange={(e) => setMissionParams({...missionParams, geometry: e.target.value})}
                 >
-                  <option value="cilindrica">Cilíndrica</option>
-                  <option value="hibrida">Híbrida (Metálica + Inflable)</option>
+                  <option value="cilindrica">{t('option_geometry_cyl')}</option>
+                  <option value="hibrida">{t('option_geometry_hybrid')}</option>
                 </select>
               </div>
 
               <div className="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded p-3 text-sm">
-                <div className="flex items-start gap-2">
+                  <div className="flex items-start gap-2">
                   <Info size={16} className="flex-shrink-0 mt-0.5" />
                   <div>
-                    <strong>Principio:</strong> La disposición puede ser más importante que el volumen.
+                    <strong>{t('principle_title')}:</strong> {t('principle_text')}
                   </div>
                 </div>
               </div>
@@ -926,14 +1097,14 @@ function App() {
         </div>
       )}
 
-      {/* Modal de guardar */}
+  {/* Save modal */}
       {showSaveDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-700">
-            <h2 className="text-xl font-semibold mb-4">Guardar Diseño</h2>
+            <h2 className="text-xl font-semibold mb-4">{t('saveDialogTitle')}</h2>
             <input
               type="text"
-              placeholder="Nombre del diseño"
+              placeholder={t('designNamePlaceholder')}
               className="w-full bg-gray-700 rounded px-3 py-2 mb-4 border border-gray-600"
               value={designName}
               onChange={(e) => setDesignName(e.target.value)}
@@ -944,13 +1115,13 @@ function App() {
                 onClick={saveDesign}
                 className="flex-1 bg-green-600 hover:bg-green-700 rounded px-4 py-2 transition"
               >
-                Guardar
+                {t('save')}
               </button>
               <button
                 onClick={() => setShowSaveDialog(false)}
                 className="flex-1 bg-gray-600 hover:bg-gray-500 rounded px-4 py-2 transition"
               >
-                Cancelar
+                {t('cancel')}
               </button>
             </div>
           </div>

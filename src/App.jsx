@@ -737,33 +737,46 @@ function App() {
       calculateMetrics
     }}>
       <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 p-4">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8 text-white">
-            <h1 className="text-4xl font-bold mb-2">
-              🚀 HABiT
-            </h1>
-            <p className="text-xl">
-              Habitat Interactive Tool
-            </p>
-            <p className="text-sm mt-2 opacity-90">
-              Aprende los principios de diseño de hábitats espaciales mediante restricciones reales de NASA
-            </p>
-          </div>
+        <div className="mx-auto" style={{minHeight: 'calc(100vh - 4rem)'}}>
+            {/* Header */}
+            <div className="text-center mb-8 text-white">
+              <h1 className="text-4xl font-bold mb-2">
+                🚀 HABiT
+              </h1>
+              <p className="text-xl">
+                Habitat Interactive Tool
+              </p>
+              <p className="text-sm mt-2 opacity-90">
+                Aprende los principios de diseño de hábitats espaciales mediante restricciones reales de NASA
+              </p>
+            </div>
 
-          {/* Componentes principales */}
-          <MissionSetup />
-          <DesignCanvas />
-          <HabitabilityMetrics />
+            {/* Layout principal: izquierda -> centro -> derecha (responsive) */}
+            <div className="flex flex-col md:flex-row gap-4 items-stretch">
+              {/* Left: MissionSetup (sidebar en md+) */}
+              <div className="w-full md:w-[12vw] md:max-w-[240px] h-full overflow-auto">
+                <MissionSetup />
+              </div>
 
-          {/* Footer educativo */}
-          <div className="mt-8 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 text-white text-center">
-            <p className="text-sm">
-              💡 <strong>Recuerda:</strong> Un diseño exitoso minimiza masa y maximiza funcionalidad. 
-              La disposición adecuada reduce hacinamiento y mejora salud de la tripulación.
-            </p>
+              {/* Center: DesignCanvas (expande) */}
+              <div className="w-full md:flex-1 md:w-[64vw] h-full overflow-auto">
+                <DesignCanvas />
+              </div>
+
+              {/* Right: HabitabilityMetrics (panel de métricas) */}
+              <div className="w-full md:w-[20vw] md:max-w-[420px] h-full overflow-auto">
+                <HabitabilityMetrics />
+              </div>
+            </div>
+
+            {/* Footer educativo */}
+            <div className="mt-8 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 text-white text-center">
+              <p className="text-sm">
+                💡 <strong>Recuerda:</strong> Un diseño exitoso minimiza masa y maximiza funcionalidad. 
+                La disposición adecuada reduce hacinamiento y mejora salud de la tripulación.
+              </p>
+            </div>
           </div>
-        </div>
       </div>
     </HabitatContext.Provider>
   );

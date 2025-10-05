@@ -5,6 +5,16 @@
   text-align: center;
 }
 
+/* Ensure full-height layout for flex children */
+html, body, #root {
+  height: 100%;
+}
+
+.max-w-7xl {
+  min-height: 100%;
+  width: 100%;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -39,4 +49,35 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Header settings button */
+.settings-btn {
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Modal used for mission configuration */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  padding: 1rem;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 900px;
+  background: white;
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 12px 40px rgba(2,6,23,0.4);
+  max-height: 90vh;
+  overflow: auto;
 }

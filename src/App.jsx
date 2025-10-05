@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, createContext, useContext, useRef, useEffect } from 'react';
 import { AlertCircle, CheckCircle, Info } from 'lucide-react';
 
 // ============================================
@@ -81,12 +81,12 @@ function MissionSetup() {
   const { missionParams, setMissionParams } = useHabitat();
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <div className="bg-white rounded-lg shadow-md p-4 mb-6 flex flex-col h-full">
       <h2 className="text-2xl font-bold mb-4 text-gray-800">
         📋 Configuración de Misión
       </h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-3">
         {/* Destino */}
         <div>
           <label className="block text-sm font-semibold mb-2 text-gray-700">
@@ -151,7 +151,7 @@ function MissionSetup() {
           <select
             value={missionParams.geometry}
             onChange={(e) => setMissionParams({...missionParams, geometry: e.target.value})}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
           >
             <option value="cylindrical">Cilíndrica (Estándar)</option>
             <option value="hybrid">Híbrida (Metálica + Inflable)</option>
@@ -172,6 +172,19 @@ function DesignCanvas() {
   const { modules, setModules, checkContamination } = useHabitat();
   const [selectedType, setSelectedType] = useState('crew_quarters');
   const [draggedModule, setDraggedModule] = useState(null);
+  // Responsive grid columns (4 on small screens, 8 on md+)
+  const [cols, setCols] = useState(typeof window !== 'undefined' && window.innerWidth >= 768 ? 8 : 4);
+
+  useEffect(() => {
+    const onResize = () => {
+      const w = window.innerWidth;
+      setCols(w >= 768 ? 8 : 4);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const rows = cols; // keep grid square
 
   // Función para agregar un módulo al canvas
   const addModule = () => {
@@ -180,8 +193,8 @@ function DesignCanvas() {
       id: Date.now(),
       type: selectedType,
       ...moduleType,
-      x: Math.floor(Math.random() * 6),
-      y: Math.floor(Math.random() * 6)
+      x: Math.floor(Math.random() * cols),
+      y: Math.floor(Math.random() * rows)
     };
     setModules([...modules, newModule]);
   };
@@ -194,9 +207,9 @@ function DesignCanvas() {
         let newY = mod.y;
         
         if (direction === 'up') newY = Math.max(0, mod.y - 1);
-        if (direction === 'down') newY = Math.min(7, mod.y + 1);
+        if (direction === 'down') newY = Math.min(rows - 1, mod.y + 1);
         if (direction === 'left') newX = Math.max(0, mod.x - 1);
-        if (direction === 'right') newX = Math.min(7, mod.x + 1);
+        if (direction === 'right') newX = Math.min(cols - 1, mod.x + 1);
         
         return { ...mod, x: newX, y: newY };
       }
@@ -267,7 +280,7 @@ function DesignCanvas() {
   const contaminations = checkContamination();
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <div className="flex-grow bg-white rounded-lg shadow-md p-6 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <Info className="text-blue-600" size={24} />
         <h2 className="text-2xl font-bold text-gray-800">
@@ -324,11 +337,17 @@ function DesignCanvas() {
         </div>
       </div>
 
-      {/* Grid de diseño (8x8 simplificado) */}
-      <div className="grid grid-cols-8 gap-1 bg-gray-200 p-2 rounded-lg mb-4" style={{minHeight: '400px'}}>
-        {Array.from({length: 64}).map((_, idx) => {
-          const x = idx % 8;
-          const y = Math.floor(idx / 8);
+  {/* Grid de diseño (responsive) */}
+  <div
+    className="grid gap-1 bg-gray-200 p-2 rounded-lg mb-4 flex-1 min-h-0"
+    style={{
+      gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+      width: '100%'
+    }}
+  >
+        {Array.from({length: cols * rows}).map((_, idx) => {
+          const x = idx % cols;
+          const y = Math.floor(idx / cols);
           const moduleHere = modules.find(m => m.x === x && m.y === y);
           
           return (
@@ -536,6 +555,45 @@ function App() {
 
   const [modules, setModules] = useState([]);
 
+  const [showMissionModal, setShowMissionModal] = useState(false);
+  const settingsButtonRef = useRef(null);
+  const modalRef = useRef(null);
+  const sidebarRef = useRef(null);
+  const leftSidebarRef = useRef(null);
+  const [isMdUp, setIsMdUp] = useState(typeof window !== 'undefined' && window.innerWidth >= 768);
+
+  useEffect(() => {
+    const onResize = () => setIsMdUp(window.innerWidth >= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    if (!showMissionModal) return;
+
+    const timer = setTimeout(() => {
+      if (modalRef.current) {
+        const focusable = modalRef.current.querySelector('select, input, button, [tabindex]:not([tabindex="-1"])');
+        if (focusable && typeof focusable.focus === 'function') focusable.focus();
+      }
+    }, 50);
+
+    const onKey = (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        setShowMissionModal(false);
+        if (settingsButtonRef.current && typeof settingsButtonRef.current.focus === 'function') {
+          settingsButtonRef.current.focus();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [showMissionModal]);
+
   // Función para verificar contaminación cruzada
   const checkContamination = () => {
     const warnings = [];
@@ -737,24 +795,81 @@ function App() {
       calculateMetrics
     }}>
       <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 p-4">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8 text-white">
-            <h1 className="text-4xl font-bold mb-2">
-              🚀 HABiT
-            </h1>
-            <p className="text-xl">
-              Habitat Interactive Tool
-            </p>
-            <p className="text-sm mt-2 opacity-90">
-              Aprende los principios de diseño de hábitats espaciales mediante restricciones reales de NASA
-            </p>
+    <div className="max-w-7xl mx-auto flex flex-col" style={{minHeight: 'calc(100vh - 2rem)'}}>
+          {/* Header with settings icon */}
+          <div className="flex items-start justify-between mb-8 text-white">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold mb-1">🚀 HABiT</h1>
+              <p className="text-sm md:text-xl opacity-95">Habitat Interactive Tool</p>
+              <p className="text-xs md:text-sm mt-1 opacity-80">Aprende los principios de diseño de hábitats espaciales mediante restricciones reales de NASA</p>
+            </div>
+            <div>
+              <button
+                ref={settingsButtonRef}
+                onClick={() => {
+                  // On larger screens, focus the left sidebar (MissionSetup); on small screens open the modal
+                  if (isMdUp) {
+                    if (leftSidebarRef.current) {
+                      const focusable = leftSidebarRef.current.querySelector('select, input, button, [tabindex]:not([tabindex="-1"])');
+                      if (focusable && typeof focusable.focus === 'function') focusable.focus();
+                    }
+                  } else {
+                    setShowMissionModal(true);
+                  }
+                }}
+                aria-label="Abrir configuración de misión"
+                title="Configuración"
+                className="settings-btn bg-white bg-opacity-10 hover:bg-opacity-20 text-white px-3 py-2 rounded-md"
+              >
+                ⚙️
+              </button>
+            </div>
           </div>
 
-          {/* Componentes principales */}
-          <MissionSetup />
-          <DesignCanvas />
-          <HabitabilityMetrics />
+          {/* Componentes principales: layout responsive con 3 columnas en md+ (10% / 70% / 20%) */}
+          <div className="flex flex-col md:flex-row gap-4 items-stretch flex-1">
+            {/* Left sidebar (MissionSetup) - hidden en móvil */}
+            <div ref={leftSidebarRef} className="w-full md:w-[8vw] md:max-w-[180px] hidden md:block h-full">
+              <div className="h-full overflow-auto">
+                <MissionSetup />
+              </div>
+            </div>
+
+            {/* Center canvas - flexible */}
+            <div className="w-full md:flex-1 md:w-[70vw] flex flex-col h-full">
+              <DesignCanvas />
+            </div>
+
+            <div ref={sidebarRef} className="w-full md:w-[20vw] md:max-w-[420px] hidden md:block h-full">
+              <div className="h-full overflow-auto">
+                <HabitabilityMetrics />
+              </div>
+            </div>
+          </div>
+
+          {/* MissionSetup modal (opened from header) */}
+          {/* Modal for small screens only */}
+          {showMissionModal && !isMdUp && (
+            <div className="modal-overlay" role="dialog" aria-modal="true">
+              <div className="modal-box" ref={modalRef}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-bold">Configuración de Misión</h3>
+                  <button
+                    onClick={() => {
+                      setShowMissionModal(false);
+                      if (settingsButtonRef.current && typeof settingsButtonRef.current.focus === 'function') {
+                        settingsButtonRef.current.focus();
+                      }
+                    }}
+                    className="text-sm px-2 py-1 rounded hover:bg-gray-100"
+                  >Cerrar ✕</button>
+                </div>
+                <MissionSetup />
+              </div>
+            </div>
+          )}
+
+          {/* Sidebars are rendered in-flow within the main layout for md+ */}
 
           {/* Footer educativo */}
           <div className="mt-8 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 text-white text-center">

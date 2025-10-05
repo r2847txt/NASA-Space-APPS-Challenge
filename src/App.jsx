@@ -1,771 +1,962 @@
-import React, { useState, createContext, useContext } from 'react';
-import { AlertCircle, CheckCircle, Info } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Save, Trash2, Upload, AlertTriangle, CheckCircle, Info, Settings, X, Menu, Grid3x3 } from 'lucide-react';
 
-// ============================================
-// CONTEXTO GLOBAL PARA GESTIONAR EL ESTADO
-// ============================================
-const HabitatContext = createContext();
-
-const useHabitat = () => {
-  const context = useContext(HabitatContext);
-  if (!context) {
-    throw new Error('useHabitat debe usarse dentro de HabitatProvider');
-  }
-  return context;
-};
-
-// ============================================
-// DATOS DE MÓDULOS Y RESTRICCIONES
-// ============================================
-const MODULE_TYPES = {
-  CREW_QUARTERS: {
-    id: 'crew_quarters',
-    name: 'Cuarto de Tripulación',
-    minVolume: 3.5, // m³ mínimo por cuarto
-    width: 2,
-    height: 2,
-    isClean: true,
-    color: 'bg-blue-400'
+// Definición de componentes del hábitat con sus propiedades
+const HABITAT_COMPONENTS = {
+  privateQuarters: {
+    id: 'privateQuarters',
+    name: 'Cuartos Privados',
+    type: 'clean',
+    volume: 8.5,
+    width: 120,
+    height: 100,
+    color: '#4CAF50',
+    icon: '🛏️'
   },
-  GALLEY: {
+  galley: {
     id: 'galley',
-    name: 'Galley/Wardroom',
-    minVolume: 8,
-    width: 3,
-    height: 2,
-    isClean: true,
-    color: 'bg-green-400'
+    name: 'Galley/Comedor',
+    type: 'clean',
+    volume: 12,
+    width: 140,
+    height: 110,
+    color: '#2196F3',
+    icon: '🍽️'
   },
-  HYGIENE: {
+  hygiene: {
     id: 'hygiene',
-    name: 'Estación de Higiene',
-    minVolume: 2,
-    width: 2,
-    height: 1,
-    isClean: false,
-    color: 'bg-yellow-600'
+    name: 'Higiene',
+    type: 'dirty',
+    volume: 6,
+    width: 100,
+    height: 90,
+    color: '#FF9800',
+    icon: '🚿'
   },
-  WCS: {
+  wcs: {
     id: 'wcs',
-    name: 'Sistema de Residuos (WCS)',
-    minVolume: 1.5,
-    width: 1,
-    height: 1,
-    isClean: false,
-    color: 'bg-red-600'
+    name: 'WCS',
+    type: 'dirty',
+    volume: 4,
+    width: 80,
+    height: 80,
+    color: '#F44336',
+    icon: '🚽'
   },
-  EXERCISE: {
+  exercise: {
     id: 'exercise',
-    name: 'Área de Ejercicio',
-    minVolume: 4,
-    width: 2,
-    height: 2,
-    isClean: false,
-    color: 'bg-orange-500'
+    name: 'Ejercicio',
+    type: 'dirty',
+    volume: 10,
+    width: 120,
+    height: 120,
+    color: '#FF5722',
+    icon: '🏋️'
   },
-  WORKSTATION: {
+  workstation: {
     id: 'workstation',
     name: 'Estación de Trabajo',
-    minVolume: 3,
-    width: 2,
-    height: 2,
-    isClean: true,
-    color: 'bg-purple-400'
+    type: 'clean',
+    volume: 7,
+    width: 110,
+    height: 100,
+    color: '#00BCD4',
+    icon: '💻'
+  },
+  lifeSupport: {
+    id: 'lifeSupport',
+    name: 'Soporte Vital',
+    type: 'systems',
+    volume: 15,
+    width: 130,
+    height: 120,
+    color: '#9C27B0',
+    icon: '🌬️'
+  },
+  commandControl: {
+    id: 'commandControl',
+    name: 'Comando y Control',
+    type: 'clean',
+    volume: 10,
+    width: 140,
+    height: 100,
+    color: '#3F51B5',
+    icon: '🎮'
+  },
+  storage: {
+    id: 'storage',
+    name: 'Almacenamiento',
+    type: 'neutral',
+    volume: 8,
+    width: 110,
+    height: 110,
+    color: '#795548',
+    icon: '📦'
+  },
+  maintenance: {
+    id: 'maintenance',
+    name: 'Mantenimiento',
+    type: 'dirty',
+    volume: 9,
+    width: 120,
+    height: 110,
+    color: '#FF6F00',
+    icon: '🔧'
+  },
+  airlock: {
+    id: 'airlock',
+    name: 'Esclusa/Acceso',
+    type: 'dirty',
+    volume: 5,
+    width: 90,
+    height: 100,
+    color: '#607D8B',
+    icon: '🚪'
+  },
+  radiationShelter: {
+    id: 'radiationShelter',
+    name: 'Refugio Radiación',
+    type: 'clean',
+    volume: 12,
+    width: 130,
+    height: 110,
+    color: '#FFD700',
+    icon: '🛡️'
+  },
+  medical: {
+    id: 'medical',
+    name: 'Operaciones Médicas',
+    type: 'clean',
+    volume: 11,
+    width: 130,
+    height: 110,
+    color: '#E91E63',
+    icon: '⚕️'
   }
 };
 
-// ============================================
-// COMPONENTE: CONFIGURACIÓN DE MISIÓN
-// ============================================
-function MissionSetup() {
-  const { missionParams, setMissionParams } = useHabitat();
+// Distancia de snap (alineación magnética)
+const SNAP_DISTANCE = 25;
 
-  return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">
-        📋 Configuración de Misión
-      </h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Destino */}
-        <div>
-          <label className="block text-sm font-semibold mb-2 text-gray-700">
-            Destino:
-          </label>
-          <select
-            value={missionParams.destination}
-            onChange={(e) => setMissionParams({...missionParams, destination: e.target.value})}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="moon">Luna (Superficie)</option>
-            <option value="mars">Marte (Superficie)</option>
-            <option value="transit">Tránsito (Cislunar/Marte)</option>
-          </select>
-          <p className="text-xs text-gray-500 mt-1">
-            Impacta ISRU y gestión de polvo
-          </p>
-        </div>
-
-        {/* Duración */}
-        <div>
-          <label className="block text-sm font-semibold mb-2 text-gray-700">
-            Duración de la Misión:
-          </label>
-          <select
-            value={missionParams.duration}
-            onChange={(e) => setMissionParams({...missionParams, duration: e.target.value})}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="short">Corta (≤30 días)</option>
-            <option value="moderate">Moderada (60 días)</option>
-            <option value="long">Larga (180+ días)</option>
-          </select>
-          <p className="text-xs text-gray-500 mt-1">
-            Misiones largas requieren cuartos privados permanentes
-          </p>
-        </div>
-
-        {/* Tripulación */}
-        <div>
-          <label className="block text-sm font-semibold mb-2 text-gray-700">
-            Número de Tripulantes:
-          </label>
-          <input
-            type="number"
-            min="2"
-            max="8"
-            value={missionParams.crewSize}
-            onChange={(e) => setMissionParams({...missionParams, crewSize: parseInt(e.target.value)})}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            ~28-29 m³/tripulante (mínimo teórico)
-          </p>
-        </div>
-
-        {/* Geometría */}
-        <div>
-          <label className="block text-sm font-semibold mb-2 text-gray-700">
-            Geometría del Hábitat:
-          </label>
-          <select
-            value={missionParams.geometry}
-            onChange={(e) => setMissionParams({...missionParams, geometry: e.target.value})}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="cylindrical">Cilíndrica (Estándar)</option>
-            <option value="hybrid">Híbrida (Metálica + Inflable)</option>
-          </select>
-          <p className="text-xs text-gray-500 mt-1">
-            Debe caber en carenado de 8.4m
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================
-// COMPONENTE: LIENZO DE DISEÑO
-// ============================================
-function DesignCanvas() {
-  const { modules, setModules, checkContamination } = useHabitat();
-  const [selectedType, setSelectedType] = useState('crew_quarters');
-  const [draggedModule, setDraggedModule] = useState(null);
-
-  // Función para agregar un módulo al canvas
-  const addModule = () => {
-    const moduleType = MODULE_TYPES[selectedType.toUpperCase()];
-    const newModule = {
-      id: Date.now(),
-      type: selectedType,
-      ...moduleType,
-      x: Math.floor(Math.random() * 6),
-      y: Math.floor(Math.random() * 6)
-    };
-    setModules([...modules, newModule]);
-  };
-
-  // Función para mover un módulo
-  const moveModule = (id, direction) => {
-    setModules(modules.map(mod => {
-      if (mod.id === id) {
-        let newX = mod.x;
-        let newY = mod.y;
-        
-        if (direction === 'up') newY = Math.max(0, mod.y - 1);
-        if (direction === 'down') newY = Math.min(7, mod.y + 1);
-        if (direction === 'left') newX = Math.max(0, mod.x - 1);
-        if (direction === 'right') newX = Math.min(7, mod.x + 1);
-        
-        return { ...mod, x: newX, y: newY };
-      }
-      return mod;
-    }));
-  };
-
-  // Función para eliminar un módulo
-  const removeModule = (id) => {
-    setModules(modules.filter(mod => mod.id !== id));
-  };
-
-  // ===== FUNCIONES DRAG AND DROP =====
-  
-  // Inicia el arrastre de un módulo
-  const handleDragStart = (e, module) => {
-    setDraggedModule(module);
-    e.dataTransfer.effectAllowed = 'move';
-    // Agregar estilo visual al elemento arrastrado
-    e.target.style.opacity = '0.5';
-  };
-
-  // Finaliza el arrastre
-  const handleDragEnd = (e) => {
-    e.target.style.opacity = '1';
-    setDraggedModule(null);
-  };
-
-  // Permite soltar en una celda
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  // Maneja el evento de soltar en una celda
-  const handleDrop = (e, targetX, targetY) => {
-    e.preventDefault();
-    
-    if (!draggedModule) return;
-
-    // Verificar que la celda objetivo esté libre
-    const cellOccupied = modules.some(
-      mod => mod.id !== draggedModule.id && mod.x === targetX && mod.y === targetY
-    );
-
-    if (!cellOccupied) {
-      // Actualizar la posición del módulo arrastrado
-      setModules(modules.map(mod => 
-        mod.id === draggedModule.id 
-          ? { ...mod, x: targetX, y: targetY }
-          : mod
-      ));
-    }
-    
-    setDraggedModule(null);
-  };
-
-  // Resalta la celda cuando se arrastra sobre ella
-  const handleDragEnter = (e) => {
-    e.currentTarget.classList.add('bg-blue-100');
-  };
-
-  // Remueve el resaltado cuando se sale de la celda
-  const handleDragLeave = (e) => {
-    e.currentTarget.classList.remove('bg-blue-100');
-  };
-
-  const contaminations = checkContamination();
-
-  return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      <div className="flex items-center gap-2 mb-4">
-        <Info className="text-blue-600" size={24} />
-        <h2 className="text-2xl font-bold text-gray-800">
-          🏗️ Lienzo de Diseño
-        </h2>
-      </div>
-
-      {/* MENSAJE EDUCATIVO CLAVE */}
-      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
-        <p className="font-bold text-blue-900 mb-2">
-          ⚠️ PRINCIPIO RECTOR DEL DISEÑO:
-        </p>
-        <p className="text-blue-800 mb-2">
-          <strong>La disposición puede ser más importante que el volumen.</strong> Un hábitat 
-          con menor volumen pero una disposición adecuada (Properly Laid Out) es preferible 
-          a uno grande con disposición deficiente.
-        </p>
-        <p className="text-sm text-blue-700 mt-2">
-          💡 <strong>Tip:</strong> Arrastra los módulos directamente en el grid para posicionarlos, 
-          o usa las flechas para movimientos precisos.
-        </p>
-      </div>
-
-      {/* Controles para agregar módulos */}
-      <div className="mb-4 flex gap-2 items-center">
-        <select
-          value={selectedType}
-          onChange={(e) => setSelectedType(e.target.value)}
-          className="p-2 border border-gray-300 rounded-md"
-        >
-          {Object.keys(MODULE_TYPES).map(key => (
-            <option key={key} value={key.toLowerCase()}>
-              {MODULE_TYPES[key].name}
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={addModule}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-        >
-          + Agregar Módulo
-        </button>
-      </div>
-
-      {/* Leyenda de zonas */}
-      <div className="mb-4 flex gap-4 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-200 border border-blue-400"></div>
-          <span>Zonas Limpias (Clean)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-red-200 border border-red-400"></div>
-          <span>Zonas Sucias (Dirty)</span>
-        </div>
-      </div>
-
-      {/* Grid de diseño (8x8 simplificado) */}
-      <div className="grid grid-cols-8 gap-1 bg-gray-200 p-2 rounded-lg mb-4" style={{minHeight: '400px'}}>
-        {Array.from({length: 64}).map((_, idx) => {
-          const x = idx % 8;
-          const y = Math.floor(idx / 8);
-          const moduleHere = modules.find(m => m.x === x && m.y === y);
-          
-          return (
-            <div
-              key={idx}
-              className={`border border-gray-300 rounded ${
-                moduleHere 
-                  ? moduleHere.color 
-                  : 'bg-white'
-              } relative flex items-center justify-center transition-colors duration-150`}
-              style={{aspectRatio: '1/1'}}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, x, y)}
-              onDragEnter={handleDragEnter}
-              onDragLeave={handleDragLeave}
-            >
-              {moduleHere && (
-                <div 
-                  className="absolute inset-0 flex flex-col items-center justify-center p-1 cursor-move"
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, moduleHere)}
-                  onDragEnd={handleDragEnd}
-                >
-                  <span className="text-xs font-bold text-white text-center pointer-events-none" style={{fontSize: '0.6rem'}}>
-                    {moduleHere.name.split(' ')[0]}
-                  </span>
-                  <div className="flex gap-1 mt-1 pointer-events-auto">
-                    <button
-                      onClick={() => moveModule(moduleHere.id, 'up')}
-                      className="bg-white bg-opacity-50 px-1 text-xs rounded hover:bg-opacity-75"
-                      title="Arriba"
-                    >↑</button>
-                    <button
-                      onClick={() => moveModule(moduleHere.id, 'down')}
-                      className="bg-white bg-opacity-50 px-1 text-xs rounded hover:bg-opacity-75"
-                      title="Abajo"
-                    >↓</button>
-                    <button
-                      onClick={() => moveModule(moduleHere.id, 'left')}
-                      className="bg-white bg-opacity-50 px-1 text-xs rounded hover:bg-opacity-75"
-                      title="Izquierda"
-                    >←</button>
-                    <button
-                      onClick={() => moveModule(moduleHere.id, 'right')}
-                      className="bg-white bg-opacity-50 px-1 text-xs rounded hover:bg-opacity-75"
-                      title="Derecha"
-                    >→</button>
-                  </div>
-                  <button
-                    onClick={() => removeModule(moduleHere.id)}
-                    className="bg-red-500 text-white px-1 text-xs rounded mt-1 hover:bg-red-600 pointer-events-auto"
-                  >✕</button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Alertas de contaminación cruzada */}
-      {contaminations.length > 0 && (
-        <div className="bg-red-50 border-l-4 border-red-500 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertCircle className="text-red-600" size={20} />
-            <h3 className="font-bold text-red-900">⚠️ ALERTAS DE RIESGO DE CONTAMINACIÓN</h3>
-          </div>
-          <ul className="list-disc list-inside text-red-800">
-            {contaminations.map((warning, idx) => (
-              <li key={idx}>{warning}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================
-// COMPONENTE: MÉTRICAS DE HABITABILIDAD
-// ============================================
-function HabitabilityMetrics() {
-  const { missionParams, modules, calculateMetrics } = useHabitat();
-  const metrics = calculateMetrics();
-
-  return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">
-        📊 Evaluación de Habitabilidad
-      </h2>
-
-      <div className="space-y-4">
-        {/* Volumen Habitable Neto (NHV) */}
-        <div className="border-b pb-4">
-          <h3 className="font-bold text-lg mb-2">Volumen Habitable Neto (NHV)</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-600">NHV Mínimo Requerido:</p>
-              <p className="text-xl font-bold text-blue-600">
-                {metrics.minNHV.toFixed(1)} m³
-              </p>
-              <p className="text-xs text-gray-500">
-                (28 m³ × {missionParams.crewSize} tripulantes)
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">NHV Actual del Diseño:</p>
-              <p className="text-xl font-bold text-green-600">
-                {metrics.actualNHV.toFixed(1)} m³
-              </p>
-              <p className="text-xs text-gray-500">
-                ~{(metrics.actualNHV / missionParams.crewSize).toFixed(1)} m³/tripulante
-              </p>
-            </div>
-          </div>
-          <div className="mt-2">
-            {metrics.nhvStatus === 'sufficient' ? (
-              <div className="flex items-center gap-2 text-green-700">
-                <CheckCircle size={20} />
-                <span>✓ Volumen suficiente para la tripulación</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-red-700">
-                <AlertCircle size={20} />
-                <span>✗ Volumen insuficiente - Agregar más módulos</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Privacidad */}
-        <div className="border-b pb-4">
-          <h3 className="font-bold text-lg mb-2">Privacidad</h3>
-          <p className="text-sm text-gray-600 mb-2">
-            Cuartos privados: {metrics.crewQuarters} / {missionParams.crewSize} requeridos
-          </p>
-          {metrics.privacyStatus === 'adequate' ? (
-            <div className="flex items-center gap-2 text-green-700">
-              <CheckCircle size={20} />
-              <span>✓ Privacidad adecuada para misión {missionParams.duration}</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-yellow-700">
-              <AlertCircle size={20} />
-              <span>⚠ Se requieren más cuartos privados para misiones largas</span>
-            </div>
-          )}
-        </div>
-
-        {/* Separación Funcional */}
-        <div className="border-b pb-4">
-          <h3 className="font-bold text-lg mb-2">Separación Funcional</h3>
-          <div className="space-y-2">
-            <div>
-              <p className="text-sm">Zonas Limpias: {metrics.cleanZones} módulos</p>
-              <p className="text-xs text-gray-500">
-                (Cuartos, Galley, Workstation)
-              </p>
-            </div>
-            <div>
-              <p className="text-sm">Zonas Sucias: {metrics.dirtyZones} módulos</p>
-              <p className="text-xs text-gray-500">
-                (WCS, Higiene, Ejercicio)
-              </p>
-            </div>
-            {metrics.separationStatus === 'good' ? (
-              <div className="flex items-center gap-2 text-green-700">
-                <CheckCircle size={20} />
-                <span>✓ Separación adecuada de zonas</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 text-red-700">
-                <AlertCircle size={20} />
-                <span>✗ Riesgo de contaminación cruzada detectado</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Masa Estimada */}
-        <div>
-          <h3 className="font-bold text-lg mb-2">Masa Estimada del Sistema</h3>
-          <p className="text-xl font-bold text-purple-600">
-            {metrics.estimatedMass.toFixed(0)} kg
-          </p>
-          <p className="text-xs text-gray-500">
-            Estimación basada en volumen y número de módulos
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================
-// COMPONENTE PRINCIPAL: APP
-// ============================================
 function App() {
-  // Estado global de la aplicación
   const [missionParams, setMissionParams] = useState({
-    destination: 'moon',
-    duration: 'moderate',
+    destination: 'luna',
+    duration: 'corta',
     crewSize: 4,
-    geometry: 'cylindrical'
+    geometry: 'cilindrica'
   });
 
-  const [modules, setModules] = useState([]);
+  const [placedComponents, setPlacedComponents] = useState([]);
+  const [draggedComponent, setDraggedComponent] = useState(null);
+  const [isDraggingExisting, setIsDraggingExisting] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const canvasRef = useRef(null);
+  
+  const [savedDesigns, setSavedDesigns] = useState([]);
+  const [designName, setDesignName] = useState('');
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  
+  // Estados para UI mejorada
+  const [showSettings, setShowSettings] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [showGrid, setShowGrid] = useState(true);
+  const [selectedComponent, setSelectedComponent] = useState(null);
 
-  // Función para verificar contaminación cruzada
-  const checkContamination = () => {
-    const warnings = [];
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem('habitatDesigns') || '[]');
+    setSavedDesigns(saved);
+  }, []);
+
+  const findSnapPosition = (x, y, width, height, excludeId = null) => {
+    let snappedX = x;
+    let snappedY = y;
+    let minDistanceX = SNAP_DISTANCE;
+    let minDistanceY = SNAP_DISTANCE;
+
+    placedComponents.forEach(comp => {
+      if (comp.id === excludeId) return;
+      
+      const compData = HABITAT_COMPONENTS[comp.type];
+      
+      const edges = [
+        { pos: comp.x, snap: comp.x },
+        { pos: comp.x + compData.width, snap: comp.x + compData.width },
+        { pos: comp.x + compData.width, snap: comp.x + compData.width - width },
+        { pos: comp.x + compData.width/2, snap: comp.x + compData.width/2 - width/2 }
+      ];
+
+      edges.forEach(edge => {
+        const distLeft = Math.abs(x - edge.pos);
+        const distRight = Math.abs((x + width) - edge.pos);
+        
+        if (distLeft < minDistanceX) {
+          minDistanceX = distLeft;
+          snappedX = edge.snap;
+        }
+        if (distRight < minDistanceX) {
+          minDistanceX = distRight;
+          snappedX = edge.pos - width;
+        }
+      });
+
+      const vEdges = [
+        { pos: comp.y, snap: comp.y },
+        { pos: comp.y + compData.height, snap: comp.y + compData.height },
+        { pos: comp.y + compData.height, snap: comp.y + compData.height - height },
+        { pos: comp.y + compData.height/2, snap: comp.y + compData.height/2 - height/2 }
+      ];
+
+      vEdges.forEach(edge => {
+        const distTop = Math.abs(y - edge.pos);
+        const distBottom = Math.abs((y + height) - edge.pos);
+        
+        if (distTop < minDistanceY) {
+          minDistanceY = distTop;
+          snappedY = edge.snap;
+        }
+        if (distBottom < minDistanceY) {
+          minDistanceY = distBottom;
+          snappedY = edge.pos - height;
+        }
+      });
+    });
+
+    return {
+      x: minDistanceX < SNAP_DISTANCE ? snappedX : x,
+      y: minDistanceY < SNAP_DISTANCE ? snappedY : y
+    };
+  };
+
+  const calculateMetrics = () => {
+    const minNHV = missionParams.crewSize * (missionParams.duration === 'larga' ? 28 : 20);
+    const currentNHV = placedComponents.reduce((sum, comp) => sum + HABITAT_COMPONENTS[comp.type].volume, 0);
     
-    // Verificar adyacencia entre módulos limpios y sucios
-    modules.forEach(mod1 => {
-      modules.forEach(mod2 => {
-        if (mod1.id !== mod2.id && mod1.isClean !== mod2.isClean) {
-          // Verificar si son adyacentes (en las 4 direcciones)
-          const isAdjacent = 
-            (Math.abs(mod1.x - mod2.x) === 1 && mod1.y === mod2.y) ||
-            (Math.abs(mod1.y - mod2.y) === 1 && mod1.x === mod2.x);
+    const contaminations = [];
+    placedComponents.forEach((comp, idx) => {
+      const compData = HABITAT_COMPONENTS[comp.type];
+      placedComponents.forEach((other, otherIdx) => {
+        if (idx !== otherIdx) {
+          const otherData = HABITAT_COMPONENTS[other.type];
+          const distance = Math.sqrt(
+            Math.pow(comp.x - other.x, 2) + Math.pow(comp.y - other.y, 2)
+          );
           
-          if (isAdjacent) {
-            warnings.push(
-              `RIESGO: ${mod1.name} (${mod1.isClean ? 'Limpia' : 'Sucia'}) está adyacente a ${mod2.name} (${mod2.isClean ? 'Limpia' : 'Sucia'})`
-            );
+          // Si están muy cerca y son de tipos incompatibles
+          if (distance < 150) {
+            if ((compData.type === 'clean' && otherData.type === 'dirty') ||
+                (compData.type === 'dirty' && otherData.type === 'clean')) {
+              contaminations.push({
+                comp1: compData.name,
+                comp2: otherData.name
+              });
+            }
           }
         }
       });
     });
 
-    return warnings;
-  };
-
-  // Función para calcular métricas de habitabilidad
-  const calculateMetrics = () => {
-    // Calcular NHV mínimo requerido (28 m³ por tripulante para misiones largas)
-    const minNHV = missionParams.crewSize * 28;
+    const privateQuarters = placedComponents.filter(c => c.type === 'privateQuarters');
+    const publicAreas = placedComponents.filter(c => ['galley', 'workstation'].includes(c.type));
     
-    // Calcular NHV actual (suma de volúmenes de módulos + factor de ineficiencia)
-    const moduleVolume = modules.reduce((sum, mod) => sum + mod.minVolume, 0);
-    const actualNHV = moduleVolume * 1.3; // Factor de ineficiencia de empaquetamiento
+    let privacyScore = 100;
+    privateQuarters.forEach(pq => {
+      publicAreas.forEach(pa => {
+        const distance = Math.sqrt(Math.pow(pq.x - pa.x, 2) + Math.pow(pq.y - pa.y, 2));
+        if (distance < 200) privacyScore -= 20;
+      });
+    });
 
-    // Contar cuartos privados
-    const crewQuarters = modules.filter(m => m.type === 'crew_quarters').length;
-
-    // Contar zonas limpias y sucias
-    const cleanZones = modules.filter(m => m.isClean).length;
-    const dirtyZones = modules.filter(m => !m.isClean).length;
-
-    // Estimar masa (factor aproximado: 100 kg/m³ de volumen)
-    const estimatedMass = actualNHV * 100 + modules.length * 50;
-
-    // Evaluar estado
-    const nhvStatus = actualNHV >= minNHV ? 'sufficient' : 'insufficient';
-    const privacyStatus = (missionParams.duration === 'long' && crewQuarters >= missionParams.crewSize) || 
-                          (missionParams.duration !== 'long') ? 'adequate' : 'insufficient';
-    const separationStatus = checkContamination().length === 0 ? 'good' : 'poor';
+    // Verificar componentes críticos
+    const hasLifeSupport = placedComponents.some(c => c.type === 'lifeSupport');
+    const hasAirlock = placedComponents.some(c => c.type === 'airlock');
+    const hasMedical = placedComponents.some(c => c.type === 'medical');
+    const hasSPECapability = placedComponents.some(c => ['privateQuarters', 'galley', 'radiationShelter'].includes(c.type));
+    const hasStorage = placedComponents.some(c => c.type === 'storage');
+    const hasCommandControl = placedComponents.some(c => c.type === 'commandControl');
+    
+    // CÁLCULO DE PUNTUACIÓN DE HABITABILIDAD (0-100)
+    let habitabilityScore = 0;
+    
+    // 1. Volumen adecuado (20 puntos)
+    if (currentNHV >= minNHV) {
+      habitabilityScore += 20;
+    } else {
+      habitabilityScore += Math.min(20, (currentNHV / minNHV) * 20);
+    }
+    
+    // 2. Privacidad (15 puntos)
+    habitabilityScore += (privacyScore / 100) * 15;
+    
+    // 3. Sin contaminación cruzada (20 puntos)
+    const contaminationPenalty = Math.min(20, contaminations.length * 5);
+    habitabilityScore += (20 - contaminationPenalty);
+    
+    // 4. Componentes críticos (30 puntos total)
+    if (hasLifeSupport) habitabilityScore += 10;
+    if (hasAirlock) habitabilityScore += 8;
+    if (hasMedical) habitabilityScore += 6;
+    if (hasSPECapability) habitabilityScore += 6;
+    
+    // 5. Componentes complementarios (10 puntos)
+    if (hasStorage) habitabilityScore += 5;
+    if (hasCommandControl) habitabilityScore += 5;
+    
+    // 6. Balance de componentes (5 puntos)
+    const hasBasicNeeds = placedComponents.some(c => c.type === 'galley') &&
+                          placedComponents.some(c => c.type === 'hygiene') &&
+                          placedComponents.some(c => c.type === 'privateQuarters');
+    if (hasBasicNeeds) habitabilityScore += 5;
+    
+    habitabilityScore = Math.round(Math.min(100, Math.max(0, habitabilityScore)));
 
     return {
       minNHV,
-      actualNHV,
-      nhvStatus,
-      crewQuarters,
-      privacyStatus,
-      cleanZones,
-      dirtyZones,
-      separationStatus,
-      estimatedMass
+      currentNHV,
+      nhvCompliance: currentNHV >= minNHV,
+      contaminations: [...new Set(contaminations.map(c => `${c.comp1} ↔ ${c.comp2}`))],
+      privacyScore: Math.max(0, privacyScore),
+      hasSPECapability,
+      hasLifeSupport,
+      hasAirlock,
+      hasMedical,
+      hasStorage,
+      hasCommandControl,
+      habitabilityScore
     };
   };
 
-  // ===== SISTEMA DE PUNTAJE =====
-  const calculateScore = () => {
-    const metrics = calculateMetrics();
-    const contaminations = checkContamination();
-    let score = 0;
-    let maxScore = 0;
-    const breakdown = [];
+  const metrics = calculateMetrics();
 
-    // 1. VOLUMEN HABITABLE (30 puntos máximo)
-    maxScore += 30;
-    if (metrics.nhvStatus === 'sufficient') {
-      const volumeRatio = metrics.actualNHV / metrics.minNHV;
-      if (volumeRatio >= 1.0 && volumeRatio <= 1.5) {
-        // Óptimo: 100-150% del mínimo
-        score += 30;
-        breakdown.push({ category: 'Volumen Habitable', points: 30, max: 30, status: 'excellent' });
-      } else if (volumeRatio > 1.5 && volumeRatio <= 2.0) {
-        // Aceptable pero ineficiente
-        score += 20;
-        breakdown.push({ category: 'Volumen Habitable', points: 20, max: 30, status: 'good' });
-      } else if (volumeRatio > 2.0) {
-        // Muy ineficiente (demasiado espacio = más masa)
-        score += 10;
-        breakdown.push({ category: 'Volumen Habitable', points: 10, max: 30, status: 'poor' });
-      }
-    } else {
-      breakdown.push({ category: 'Volumen Habitable', points: 0, max: 30, status: 'fail' });
-    }
+  const handleDragStart = (componentType, e) => {
+    e.dataTransfer.effectAllowed = 'copy';
+    setDraggedComponent(componentType);
+    setIsDraggingExisting(false);
+  };
 
-    // 2. PRIVACIDAD (25 puntos máximo)
-    maxScore += 25;
-    if (missionParams.duration === 'long') {
-      if (metrics.crewQuarters >= missionParams.crewSize) {
-        score += 25;
-        breakdown.push({ category: 'Privacidad', points: 25, max: 25, status: 'excellent' });
-      } else if (metrics.crewQuarters >= missionParams.crewSize * 0.75) {
-        score += 15;
-        breakdown.push({ category: 'Privacidad', points: 15, max: 25, status: 'good' });
-      } else {
-        breakdown.push({ category: 'Privacidad', points: 0, max: 25, status: 'fail' });
-      }
-    } else {
-      // Misiones cortas/moderadas son más flexibles
-      if (metrics.crewQuarters >= missionParams.crewSize * 0.5) {
-        score += 25;
-        breakdown.push({ category: 'Privacidad', points: 25, max: 25, status: 'excellent' });
-      } else {
-        score += 15;
-        breakdown.push({ category: 'Privacidad', points: 15, max: 25, status: 'good' });
-      }
-    }
+  const handleCanvasDrop = (e) => {
+    e.preventDefault();
+    if (!draggedComponent || isDraggingExisting) return;
 
-    // 3. SEPARACIÓN FUNCIONAL (30 puntos máximo)
-    maxScore += 30;
-    if (contaminations.length === 0) {
-      score += 30;
-      breakdown.push({ category: 'Separación Limpio/Sucio', points: 30, max: 30, status: 'excellent' });
-    } else if (contaminations.length <= 2) {
-      score += 15;
-      breakdown.push({ category: 'Separación Limpio/Sucio', points: 15, max: 30, status: 'poor' });
-    } else {
-      breakdown.push({ category: 'Separación Limpio/Sucio', points: 0, max: 30, status: 'fail' });
-    }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    // 4. EFICIENCIA DE MASA (15 puntos máximo)
-    maxScore += 15;
-    const massPerCrew = metrics.estimatedMass / missionParams.crewSize;
-    if (massPerCrew < 3000) {
-      score += 15;
-      breakdown.push({ category: 'Eficiencia de Masa', points: 15, max: 15, status: 'excellent' });
-    } else if (massPerCrew < 4000) {
-      score += 10;
-      breakdown.push({ category: 'Eficiencia de Masa', points: 10, max: 15, status: 'good' });
-    } else {
-      score += 5;
-      breakdown.push({ category: 'Eficiencia de Masa', points: 5, max: 15, status: 'poor' });
-    }
+    const rect = canvas.getBoundingClientRect();
+    let x = e.clientX - rect.left - 50;
+    let y = e.clientY - rect.top - 50;
 
-    // 5. MÓDULOS ESENCIALES (Bonus - hasta 20 puntos)
-    const hasGalley = modules.some(m => m.type === 'galley');
-    const hasHygiene = modules.some(m => m.type === 'hygiene');
-    const hasWCS = modules.some(m => m.type === 'wcs');
-    const hasExercise = modules.some(m => m.type === 'exercise');
-    const hasWorkstation = modules.some(m => m.type === 'workstation');
-
-    const essentialModules = [hasGalley, hasHygiene, hasWCS, hasExercise, hasWorkstation];
-    const essentialCount = essentialModules.filter(Boolean).length;
-    const essentialPoints = essentialCount * 4;
+    const compData = HABITAT_COMPONENTS[draggedComponent];
     
-    score += essentialPoints;
-    breakdown.push({ 
-      category: 'Módulos Esenciales', 
-      points: essentialPoints, 
-      max: 20, 
-      status: essentialCount >= 4 ? 'excellent' : essentialCount >= 3 ? 'good' : 'poor',
-      details: `${essentialCount}/5 módulos presentes`
+    const snapped = findSnapPosition(x, y, compData.width, compData.height);
+    x = snapped.x;
+    y = snapped.y;
+
+    x = Math.max(0, Math.min(x, rect.width - compData.width));
+    y = Math.max(0, Math.min(y, rect.height - compData.height));
+
+    const newComponent = {
+      id: Date.now(),
+      type: draggedComponent,
+      x,
+      y
+    };
+
+    setPlacedComponents([...placedComponents, newComponent]);
+    setDraggedComponent(null);
+    setSelectedComponent(newComponent.id);
+  };
+
+  const handleComponentMouseDown = (componentId, e) => {
+    e.stopPropagation();
+    setSelectedComponent(componentId);
+    const component = placedComponents.find(c => c.id === componentId);
+    if (!component) return;
+    
+    setDraggedComponent(component);
+    setIsDraggingExisting(true);
+    
+    const compElement = e.currentTarget;
+    const rect = compElement.getBoundingClientRect();
+    
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
     });
+  };
 
-    // Calcular porcentaje y clasificación
-    const totalMaxScore = maxScore + 20; // Incluir bonus
-    const percentage = Math.round((score / totalMaxScore) * 100);
+  const handleMouseMove = (e) => {
+    if (!draggedComponent || !isDraggingExisting || !canvasRef.current) return;
     
-    let grade = '';
-    let gradeColor = '';
-    if (percentage >= 90) {
-      grade = 'Excelente - NASA Aprobado';
-      gradeColor = 'text-green-600';
-    } else if (percentage >= 75) {
-      grade = 'Bueno - Necesita Ajustes Menores';
-      gradeColor = 'text-blue-600';
-    } else if (percentage >= 60) {
-      grade = 'Aceptable - Requiere Mejoras';
-      gradeColor = 'text-yellow-600';
-    } else {
-      grade = 'Insuficiente - Rediseñar';
-      gradeColor = 'text-red-600';
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    
+    let x = e.clientX - rect.left - dragOffset.x;
+    let y = e.clientY - rect.top - dragOffset.y;
+
+    const compData = HABITAT_COMPONENTS[draggedComponent.type];
+    
+    const snapped = findSnapPosition(x, y, compData.width, compData.height, draggedComponent.id);
+    x = snapped.x;
+    y = snapped.y;
+
+    x = Math.max(0, Math.min(x, rect.width - compData.width));
+    y = Math.max(0, Math.min(y, rect.height - compData.height));
+
+    setPlacedComponents(placedComponents.map(comp => 
+      comp.id === draggedComponent.id
+        ? { ...comp, x, y }
+        : comp
+    ));
+  };
+
+  const handleMouseUp = () => {
+    if (isDraggingExisting) {
+      setDraggedComponent(null);
+      setIsDraggingExisting(false);
+    }
+  };
+
+  const removeComponent = (componentId) => {
+    setPlacedComponents(placedComponents.filter(c => c.id !== componentId));
+    setSelectedComponent(null);
+  };
+
+  const saveDesign = () => {
+    if (!designName.trim()) {
+      alert('Por favor ingresa un nombre para el diseño');
+      return;
     }
 
-    return {
-      score,
-      maxScore: totalMaxScore,
-      percentage,
-      grade,
-      gradeColor,
-      breakdown
+    const design = {
+      id: Date.now(),
+      name: designName,
+      date: new Date().toISOString(),
+      missionParams,
+      placedComponents,
+      metrics
     };
+
+    const updated = [...savedDesigns, design];
+    setSavedDesigns(updated);
+    localStorage.setItem('habitatDesigns', JSON.stringify(updated));
+    
+    setDesignName('');
+    setShowSaveDialog(false);
   };
+
+  const loadDesign = (design) => {
+    setMissionParams(design.missionParams);
+    setPlacedComponents(design.placedComponents);
+    setShowSidebar(false);
+  };
+
+  const deleteDesign = (designId) => {
+    if (!confirm('¿Estás seguro de eliminar este diseño?')) return;
+    
+    const updated = savedDesigns.filter(d => d.id !== designId);
+    setSavedDesigns(updated);
+    localStorage.setItem('habitatDesigns', JSON.stringify(updated));
+  };
+
+  const clearCanvas = () => {
+    if (confirm('¿Limpiar todo el canvas?')) {
+      setPlacedComponents([]);
+      setSelectedComponent(null);
+    }
+  };
+
+  const getCanvasBackground = () => {
+    switch(missionParams.destination) {
+      case 'luna':
+        return {
+          background: 'radial-gradient(ellipse at bottom, #1a1a2e 0%, #0f0f1e 100%)',
+          backgroundImage: `
+            radial-gradient(2px 2px at 20% 30%, white, transparent),
+            radial-gradient(2px 2px at 60% 70%, white, transparent),
+            radial-gradient(1px 1px at 50% 50%, white, transparent),
+            radial-gradient(circle at 50% 80%, #4a4a5a 0%, transparent 50%)
+          `,
+          borderColor: '#4a4a5a'
+        };
+      case 'marte':
+        return {
+          background: 'linear-gradient(180deg, #1a0f0a 0%, #3d1f14 50%, #5c2e1f 100%)',
+          backgroundImage: `
+            radial-gradient(2px 2px at 20% 30%, white, transparent),
+            radial-gradient(1px 1px at 60% 70%, white, transparent),
+            radial-gradient(circle at 30% 70%, rgba(139, 69, 19, 0.3) 0%, transparent 50%)
+          `,
+          borderColor: '#8b4513'
+        };
+      case 'transito':
+        return {
+          background: 'radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%)',
+          backgroundImage: `
+            radial-gradient(2px 2px at 20% 30%, white, transparent),
+            radial-gradient(2px 2px at 60% 70%, white, transparent),
+            radial-gradient(1px 1px at 50% 50%, white, transparent),
+            radial-gradient(2px 2px at 90% 60%, white, transparent)
+          `,
+          borderColor: '#1a1a3a'
+        };
+      default:
+        return {
+          background: '#1a1a2e',
+          borderColor: '#4a4a5a'
+        };
+    }
+  };
+
+  const canvasStyle = getCanvasBackground();
 
   return (
-    <HabitatContext.Provider value={{
-      missionParams,
-      setMissionParams,
-      modules,
-      setModules,
-      checkContamination,
-      calculateMetrics
-    }}>
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-blue-900 p-4">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8 text-white">
-            <h1 className="text-4xl font-bold mb-2">
-              🚀 HABiT
-            </h1>
-            <p className="text-xl">
-              Habitat Interactive Tool
-            </p>
-            <p className="text-sm mt-2 opacity-90">
-              Aprende los principios de diseño de hábitats espaciales mediante restricciones reales de NASA
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white">
+      {/* Header compacto y responsive */}
+      <header className="bg-gray-900 bg-opacity-90 backdrop-blur-sm border-b border-gray-700 px-3 sm:px-6 py-3 sm:py-4 sticky top-0 z-50">
+        <div className="max-w-full mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <button
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="p-2 hover:bg-gray-800 rounded"
+            >
+              <Menu size={20} className="sm:w-6 sm:h-6" />
+            </button>
+            <div>
+              <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                🚀 HABiT
+              </h1>
+              <p className="text-xs text-gray-400 hidden sm:block">Habitat Interactive Tool</p>
+            </div>
+          </div>
+          
+          {/* Puntuación de Habitabilidad - Responsive */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className="bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg px-3 sm:px-6 py-1.5 sm:py-2 border-2 border-blue-500 shadow-lg">
+              <div className="text-xs text-gray-300 mb-0.5 sm:mb-1 text-center hidden sm:block">Habitabilidad</div>
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="text-xl sm:text-3xl font-bold" style={{
+                  color: metrics.habitabilityScore >= 80 ? '#4CAF50' :
+                         metrics.habitabilityScore >= 60 ? '#FFC107' :
+                         metrics.habitabilityScore >= 40 ? '#FF9800' : '#F44336'
+                }}>
+                  {metrics.habitabilityScore}
+                </div>
+                <div>
+                  <div className="text-xs text-gray-400">de 100</div>
+                  <div className="w-12 sm:w-20 bg-gray-700 rounded-full h-1.5 sm:h-2 mt-0.5 sm:mt-1">
+                    <div 
+                      className="h-1.5 sm:h-2 rounded-full transition-all duration-500"
+                      style={{ 
+                        width: `${metrics.habitabilityScore}%`,
+                        backgroundColor: metrics.habitabilityScore >= 80 ? '#4CAF50' :
+                                       metrics.habitabilityScore >= 60 ? '#FFC107' :
+                                       metrics.habitabilityScore >= 40 ? '#FF9800' : '#F44336'
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-1 sm:gap-2">
+            <button
+              onClick={() => setShowGrid(!showGrid)}
+              className={`p-1.5 sm:p-2 rounded transition ${showGrid ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
+              title="Toggle Grid"
+            >
+              <Grid3x3 size={16} className="sm:w-5 sm:h-5" />
+            </button>
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="p-1.5 sm:p-2 bg-gray-700 hover:bg-gray-600 rounded transition"
+              title="Configuración"
+            >
+              <Settings size={16} className="sm:w-5 sm:h-5" />
+            </button>
+            <button
+              onClick={clearCanvas}
+              className="px-2 sm:px-4 py-1.5 sm:py-2 bg-red-600 hover:bg-red-700 rounded transition flex items-center gap-1 sm:gap-2"
+            >
+              <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+              <span className="hidden md:inline text-sm">Limpiar</span>
+            </button>
+            <button
+              onClick={() => setShowSaveDialog(true)}
+              className="px-2 sm:px-4 py-1.5 sm:py-2 bg-green-600 hover:bg-green-700 rounded transition flex items-center gap-1 sm:gap-2"
+            >
+              <Save size={16} className="sm:w-[18px] sm:h-[18px]" />
+              <span className="hidden md:inline text-sm">Guardar</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex h-[calc(100vh-80px)]">
+        {/* Sidebar izquierdo - Componentes */}
+        <div className={`${showSidebar ? 'w-80' : 'w-0'} transition-all duration-300 bg-gray-800 border-r border-gray-700 overflow-hidden flex-shrink-0`}>
+          <div className="p-4 h-full overflow-y-auto">
+            <h2 className="text-lg font-semibold mb-3 flex items-center justify-between">
+              Componentes
+              <button
+                onClick={() => setShowSidebar(false)}
+                className="lg:hidden p-1 hover:bg-gray-700 rounded"
+              >
+                <X size={18} />
+              </button>
+            </h2>
+            <p className="text-xs text-gray-400 mb-4">Arrastra al canvas para agregar →</p>
+            
+            <div className="space-y-2">
+              {Object.values(HABITAT_COMPONENTS).map((comp) => (
+                <div
+                  key={comp.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(comp.id, e)}
+                  className="bg-gray-700 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-gray-600 transition border-l-4 transform hover:scale-105"
+                  style={{ borderLeftColor: comp.color }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">{comp.icon}</span>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{comp.name}</div>
+                      <span className="text-xs text-gray-400">{comp.volume}m³</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className={`px-2 py-0.5 rounded ${
+                      comp.type === 'clean' ? 'bg-green-600' : 
+                      comp.type === 'dirty' ? 'bg-red-600' : 
+                      comp.type === 'systems' ? 'bg-purple-600' : 
+                      'bg-gray-600'
+                    }`}>
+                      {comp.type === 'clean' ? 'Limpio' : 
+                       comp.type === 'dirty' ? 'Sucio' : 
+                       comp.type === 'systems' ? 'Sistemas' : 
+                       'Neutral'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Diseños guardados en sidebar */}
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold mb-2 text-gray-300">Diseños Guardados</h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {savedDesigns.length === 0 ? (
+                  <p className="text-xs text-gray-500 text-center py-4">
+                    No hay diseños guardados
+                  </p>
+                ) : (
+                  savedDesigns.map((design) => (
+                    <div key={design.id} className="bg-gray-700 rounded p-2 text-xs">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{design.name}</div>
+                          <div className="text-gray-400">
+                            {new Date(design.date).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => loadDesign(design)}
+                            className="p-1 bg-blue-600 hover:bg-blue-700 rounded"
+                            title="Cargar"
+                          >
+                            <Upload size={12} />
+                          </button>
+                          <button
+                            onClick={() => deleteDesign(design.id)}
+                            className="p-1 bg-red-600 hover:bg-red-700 rounded"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Canvas principal */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 p-6 overflow-auto">
+            <div className="max-w-7xl mx-auto h-full">
+              <div
+                ref={canvasRef}
+                className="relative rounded-lg border-2 overflow-hidden h-full min-h-[600px]"
+                style={{ 
+                  background: canvasStyle.background,
+                  backgroundImage: showGrid ? 
+                    `repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 40px),
+                     repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 40px),
+                     ${canvasStyle.backgroundImage}` : canvasStyle.backgroundImage,
+                  backgroundSize: showGrid ? '40px 40px, 40px 40px, 200% 200%' : canvasStyle.backgroundSize,
+                  borderColor: canvasStyle.borderColor
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleCanvasDrop}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onClick={() => setSelectedComponent(null)}
+              >
+                {placedComponents.length === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-center px-4 pointer-events-none">
+                    <div>
+                      <div className="text-2xl mb-3">🚀 Comienza tu diseño</div>
+                      <div className="text-sm">Arrastra componentes desde el panel izquierdo</div>
+                      <div className="text-xs text-gray-500 mt-2">Los módulos se alinearán automáticamente</div>
+                    </div>
+                  </div>
+                )}
+
+                {placedComponents.map((comp) => {
+                  const compData = HABITAT_COMPONENTS[comp.type];
+                  const isSelected = selectedComponent === comp.id;
+                  return (
+                    <div
+                      key={comp.id}
+                      className={`absolute cursor-move rounded-lg border-2 flex flex-col items-center justify-center p-3 transition-all ${
+                        isSelected ? 'ring-4 ring-white ring-opacity-50 z-10' : 'hover:scale-105'
+                      }`}
+                      style={{
+                        left: comp.x,
+                        top: comp.y,
+                        width: compData.width,
+                        height: compData.height,
+                        backgroundColor: compData.color + 'DD',
+                        borderColor: isSelected ? 'white' : compData.color,
+                        boxShadow: isSelected 
+                          ? `0 0 30px ${compData.color}, inset 0 0 20px rgba(255,255,255,0.2)`
+                          : `0 4px 15px ${compData.color}88, inset 0 0 20px rgba(255,255,255,0.1)`
+                      }}
+                      onMouseDown={(e) => handleComponentMouseDown(comp.id, e)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedComponent(comp.id);
+                      }}
+                    >
+                      <div className="text-xl mb-1">{compData.icon}</div>
+                      <div className="text-xs font-bold text-white drop-shadow-lg text-center leading-tight">
+                        {compData.name}
+                      </div>
+                      <div className="text-xs text-white opacity-80 mt-1">
+                        {compData.volume}m³
+                      </div>
+                      {isSelected && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeComponent(comp.id);
+                          }}
+                          className="absolute -top-3 -right-3 bg-red-600 hover:bg-red-700 rounded-full p-1.5 shadow-lg"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          {/* Componentes principales */}
-          <MissionSetup />
-          <DesignCanvas />
-          <HabitabilityMetrics />
+          {/* Panel de métricas inferior */}
+          <div className="bg-gray-800 border-t border-gray-700 p-4">
+            <div className="max-w-7xl mx-auto">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                <div className="bg-gray-700 rounded p-3">
+                  <div className="text-xs text-gray-400 mb-1">Volumen (NHV)</div>
+                  <div className="text-lg font-bold">{metrics.currentNHV.toFixed(1)}m³</div>
+                  <div className="flex items-center gap-1 text-xs mt-1">
+                    {metrics.nhvCompliance ? (
+                      <><CheckCircle size={12} className="text-green-400" /> <span className="text-green-400">Cumple</span></>
+                    ) : (
+                      <><AlertTriangle size={12} className="text-red-400" /> <span className="text-red-400">Bajo</span></>
+                    )}
+                  </div>
+                </div>
 
-          {/* Footer educativo */}
-          <div className="mt-8 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 text-white text-center">
-            <p className="text-sm">
-              💡 <strong>Recuerda:</strong> Un diseño exitoso minimiza masa y maximiza funcionalidad. 
-              La disposición adecuada reduce hacinamiento y mejora salud de la tripulación.
-            </p>
+                <div className="bg-gray-700 rounded p-3">
+                  <div className="text-xs text-gray-400 mb-1">Privacidad</div>
+                  <div className="text-lg font-bold">{metrics.privacyScore}%</div>
+                  <div className="w-full bg-gray-600 rounded-full h-1.5 mt-2">
+                    <div 
+                      className="bg-blue-500 h-1.5 rounded-full transition-all"
+                      style={{ width: `${metrics.privacyScore}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-700 rounded p-3">
+                  <div className="text-xs text-gray-400 mb-1">Contaminación</div>
+                  <div className="text-lg font-bold">{metrics.contaminations.length}</div>
+                  <div className="flex items-center gap-1 text-xs mt-1">
+                    {metrics.contaminations.length === 0 ? (
+                      <><CheckCircle size={12} className="text-green-400" /> <span className="text-green-400">OK</span></>
+                    ) : (
+                      <><AlertTriangle size={12} className="text-yellow-400" /> <span className="text-yellow-400">Alertas</span></>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-gray-700 rounded p-3">
+                  <div className="text-xs text-gray-400 mb-1">Componentes</div>
+                  <div className="text-lg font-bold">{placedComponents.length}</div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    Tripulación: {missionParams.crewSize}
+                  </div>
+                </div>
+
+                <div className="bg-gray-700 rounded p-3">
+                  <div className="text-xs text-gray-400 mb-1">🌬️ Soporte Vital</div>
+                  <div className="text-sm font-bold mt-1">
+                    {metrics.hasLifeSupport ? (
+                      <span className="text-green-400 flex items-center gap-1">
+                        <CheckCircle size={14} /> Instalado
+                      </span>
+                    ) : (
+                      <span className="text-red-400 flex items-center gap-1">
+                        <AlertTriangle size={14} /> Faltante
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-gray-700 rounded p-3">
+                  <div className="text-xs text-gray-400 mb-1">🚪 Esclusa</div>
+                  <div className="text-sm font-bold mt-1">
+                    {metrics.hasAirlock ? (
+                      <span className="text-green-400 flex items-center gap-1">
+                        <CheckCircle size={14} /> OK
+                      </span>
+                    ) : (
+                      <span className="text-yellow-400 flex items-center gap-1">
+                        <AlertTriangle size={14} /> Requerida
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </HabitatContext.Provider>
+
+      {/* Modal de configuración */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Parámetros de Misión</h2>
+              <button onClick={() => setShowSettings(false)} className="p-1 hover:bg-gray-700 rounded">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Destino</label>
+                <select 
+                  className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
+                  value={missionParams.destination}
+                  onChange={(e) => setMissionParams({...missionParams, destination: e.target.value})}
+                >
+                  <option value="luna">🌙 Luna (Superficie)</option>
+                  <option value="marte">🔴 Marte (Superficie)</option>
+                  <option value="transito">🚀 Tránsito (Cislunar/Marte)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Duración</label>
+                <select 
+                  className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
+                  value={missionParams.duration}
+                  onChange={(e) => setMissionParams({...missionParams, duration: e.target.value})}
+                >
+                  <option value="corta">Corta (≤30 días)</option>
+                  <option value="moderada">Moderada (60 días)</option>
+                  <option value="larga">Larga (180+ días)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Tripulación: {missionParams.crewSize}</label>
+                <input 
+                  type="range" 
+                  min="2" 
+                  max="8"
+                  className="w-full"
+                  value={missionParams.crewSize}
+                  onChange={(e) => setMissionParams({...missionParams, crewSize: parseInt(e.target.value)})}
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>2</span>
+                  <span>8</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Geometría</label>
+                <select 
+                  className="w-full bg-gray-700 rounded px-3 py-2 border border-gray-600"
+                  value={missionParams.geometry}
+                  onChange={(e) => setMissionParams({...missionParams, geometry: e.target.value})}
+                >
+                  <option value="cilindrica">Cilíndrica</option>
+                  <option value="hibrida">Híbrida (Metálica + Inflable)</option>
+                </select>
+              </div>
+
+              <div className="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded p-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <Info size={16} className="flex-shrink-0 mt-0.5" />
+                  <div>
+                    <strong>Principio:</strong> La disposición puede ser más importante que el volumen.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de guardar */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full border border-gray-700">
+            <h2 className="text-xl font-semibold mb-4">Guardar Diseño</h2>
+            <input
+              type="text"
+              placeholder="Nombre del diseño"
+              className="w-full bg-gray-700 rounded px-3 py-2 mb-4 border border-gray-600"
+              value={designName}
+              onChange={(e) => setDesignName(e.target.value)}
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={saveDesign}
+                className="flex-1 bg-green-600 hover:bg-green-700 rounded px-4 py-2 transition"
+              >
+                Guardar
+              </button>
+              <button
+                onClick={() => setShowSaveDialog(false)}
+                className="flex-1 bg-gray-600 hover:bg-gray-500 rounded px-4 py-2 transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
